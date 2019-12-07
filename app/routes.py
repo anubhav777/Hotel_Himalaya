@@ -210,3 +210,28 @@ def updateuser(currentuser, uid):
     db.session.commit()
 
     return jsonify({'status': 'success', 'noty': 'User Sucessfully Updated'})
+
+
+@app.route('/login')
+def login():
+    auth = request.authorization
+
+    if not auth:
+        return ({'status': 'error', 'noty': 'you login credetials do not match'})
+
+    user = Signup.query.filter_by(email=auth.username).first()
+
+    if not user:
+        return ({'status': 'error', 'noty': 'you login credetials do not match'})
+    if user.is_verified != "True":
+        return({'status': 'error', 'noty': 'Your account is not verified'})
+
+    if check_password_hash(user.password, auth.password):
+        obj = {'id': user.id, 'exp': datetime.datetime.utcnow() +
+               datetime.timedelta(hours=4)}
+        data = jwt.encode(obj, key)
+        loginchecker(user.id)
+
+        return jsonify({'token': data.decode('UTF-8'), 'status': 'success', 'usertype': user.usertype, 'filepath': user.picturepath, 'userid': user.id})
+
+    return ({'status': 'error', 'noty': 'you login credetials do not match'})
