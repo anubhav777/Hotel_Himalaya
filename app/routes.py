@@ -96,3 +96,117 @@ def uploadfile():
         print(new_filepath)
 
     return({'status': 'file uploaded sucessfully'})
+
+
+@app.route('/signup', methods=['POST'])
+def register():
+    email = request.form['email']
+    fullname = request.form['fullname']
+    address = request.form['address']
+    phone = request.form['phone']
+    new_password = request.form['password']
+    usertype = request.form['usertype']
+    hash_password = generate_password_hash(new_password, method='sha256')
+    password = hash_password
+    registertime = time()
+    is_verified = 'False'
+    filepath = request.files['file']
+    filename = filepath.filename
+    picturepath = f"Users/{filename}"
+
+    path = makefolder('Users')
+
+    validator = Signup.query.filter_by(email=email).first()
+
+    if validator:
+        return ({'status': 'error', 'noty': 'This email has already been registered'})
+    else:
+        if not profile_checker(picturepath):
+            return({'status': 'error', 'noty': 'the pictiure seems to be in wrong format or seems to have been uploaded'})
+        else:
+            filepath.save(os.path.join(path, filename))
+            upload_file(picturepath, 'greenhorse')
+            new_data = Signup(email, fullname, address, phone, password,
+                              usertype, registertime, is_verified, picturepath)
+            db.session.add(new_data)
+            db.session.commit()
+            remove_file = os.path.join(path, filename)
+            file_remove(remove_file)
+            # return signup_schema.jsonify(new_data)
+            return({'status': 'success', 'noty': 'Sucessfully registered'})
+
+
+@app.route('/getuser/<id>', methods=['GET'])
+@token
+def getuser(currrentuser, id):
+    user = Signup.query.filter_by(id=currrentuser).first()
+    if not user:
+        return ({'status': 'error', 'noty': 'you cannot perfom this action'})
+
+    if user.usertype != "admin":
+
+        new_user = Signup.query.get(user.id)
+        return signup_schema.jsonify(new_user)
+
+    new_user = Signup.query.get(id)
+    return signup_schema.jsonify(new_user)
+
+
+@app.route('/getalluser', methods=["GET"])
+@token
+def getalluser(currentuser):
+    new_user = Signup.query.filter_by(id=currentuser).first()
+
+    if not new_user:
+        return ({'status': 'error', 'noty': 'you cannot perfom this action'})
+
+    if new_user.usertype != "admin":
+        return ({'status': 'error', 'noty': 'you cannot perfom this action'})
+
+    newuser = Signup.query.all()
+    result = signups_schema.dump(newuser)
+
+    return jsonify({'data': result, 'user': new_user.usertype})
+
+
+@app.route('/tryuser', methods=["GET"])
+def gettryuser():
+
+    newblauser = Signup.query.all()
+    result = signups_schema.dump(newblauser)
+
+    return jsonify(result)
+
+
+@app.route('/updateuser/<uid>', methods=['PUT'])
+@token
+def updateuser(currentuser, uid):
+    user = None
+    new_usertype = None
+    new_user = Signup.query.filter_by(id=currentuser).first()
+
+    if not new_user:
+        return {'please login first'}
+
+    if new_user.usertype == "staff":
+        user = Signup.query.filter_by(id=new_user.id).first()
+        new_usertype = 'staff'
+    if new_user.usertype == "admin":
+        user = Signup.query.filter_by(id=uid).first()
+        new_usertype = request.json['usertype']
+
+    curr_user = user.id
+    email = request.json['email']
+    fullname = request.json['fullname']
+    address = request.json['address']
+    phone = request.json['phone']
+
+    user.email = email
+    user.fullname = fullname
+    user.address = address
+    user.phone = phone
+    user.usertype = new_usertype
+
+    db.session.commit()
+
+    return jsonify({'status': 'success', 'noty': 'User Sucessfully Updated'})
