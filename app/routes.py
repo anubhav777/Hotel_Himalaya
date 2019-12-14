@@ -98,6 +98,114 @@ def uploadfile():
     return({'status': 'file uploaded sucessfully'})
 
 
+@app.route("/deletefile/<id>", methods=['DELETE'])
+def deletefile(id):
+    result = Filesdb.query.get(id)
+    new_filepath = result.filepath.replace("/", '\\')
+    os.chdir('D:\React\himalayafrontend\public')
+    os.remove('D:\React\himalayafrontend\public\%s' % new_filepath)
+    db.session.delete(result)
+    db.session.commit()
+    return({'status': 'deleted sucessfully'})
+
+
+@app.route('/getfile/<id>', methods=['GET'])
+def getfile(id):
+    result = Filesdb.query.get(id)
+    return file_schema.jsonify(result)
+
+
+@app.route('/updatefile/<id>', methods=['PUT'])
+def updatefile(id):
+    album = Filesdb.query.filter_by(albumid=id).all()
+    print(album)
+    for i in range(len(album)):
+        print(album[i].filename)
+
+        files = Filesdb.query.get(album[i].id)
+        files.status = album[i].album.status
+        files.interval = album[i].album.interval
+
+        db.session.commit()
+    return({'status': 'updated sucessfully'})
+
+
+@app.route('/getallfile', methods=['GET'])
+def getallfile():
+    albumname = request.args.get('albumid')
+    print(albumname)
+    if not albumname:
+        if 'display' in request.headers:
+            result = Filesdb.query.filter_by(status='Approved').all()
+            new_result = files_schema.dump(result)
+            return jsonify(new_result)
+
+        result = Filesdb.query.all()
+        new_result = files_schema.dump(result)
+        return jsonify(new_result)
+    else:
+        album = Album.query.filter_by(id=albumname).first()
+        print(album.id)
+        result = Filesdb.query.filter_by(albumid=album.id).all()
+        new_result = files_schema.dump(result)
+        return jsonify(new_result)
+
+
+@app.route('/getimage', methods=['GET'])
+def getimage():
+
+    # s3_resource=boto3.resource('s3')
+    # bucket = s3_resource.Bucket('himalayastorage')
+    bucketname = 'himalayastorage'
+    file_to_read = '2.jpg'
+    file_obj = s3.get_object(
+        Bucket=bucketname,
+        Key=file_to_read
+    )
+    filedata = file_obj['Body'].read()
+    contents = filedata.decode('utf-8')
+    print(contents)
+
+    return ({'hi': contents})
+
+
+@app.route('/try', methods=['POST'])
+def tryop():
+    name = request.json['name']
+    status = request.json['status']
+    result = Trydb(name, status)
+    db.session.add(result)
+    db.session.commit()
+    return jsonify({'hi': 'hi'})
+
+
+@app.route("/gettry", methods=['GET'])
+def gettry():
+    new_db = Trydb.query.all()
+    result = trydbs_schema.dump(new_db)
+    return jsonify(result)
+
+
+# # print(time())
+@app.route("/album", methods=["POST"])
+def album():
+    name = request.json['name']
+    date = time()
+    status = "None"
+    interval = request.json['interval']
+    folder = folder_checker(name)
+    if not folder['status']:
+        return({'status': 'Album has already been created Please provide another name'})
+
+    result = Album(name, date, status, interval)
+    db.session.add(result)
+    db.session.commit()
+    new_result = album_schema.dump(result)
+    return jsonify({'data': new_result, 'status': 'Album sucessfully created'})
+    # return album_schema.jsonify({'data':result,})
+    # return({'status':'Album sucessfully created'})
+
+
 @app.route('/signup', methods=['POST'])
 def register():
     email = request.form['email']
