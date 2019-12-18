@@ -343,3 +343,18 @@ def login():
         return jsonify({'token': data.decode('UTF-8'), 'status': 'success', 'usertype': user.usertype, 'filepath': user.picturepath, 'userid': user.id})
 
     return ({'status': 'error', 'noty': 'you login credetials do not match'})
+
+
+@app.route('/ppttopdf', methods=['POST'])
+@token
+def graph(currentuser):
+    user_id = None
+    users = Signup.query.filter_by(id=currentuser).first()
+    if not users:
+        return ({'status': 'error', 'noty': 'you cannot perfom this action'})
+    if users.usertype == 'staff':
+        user_id = users.id
+
+    filepath = request.files['file']
+    filename = filepath.filename
+    pdf_to_file(filename)

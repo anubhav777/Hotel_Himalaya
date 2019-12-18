@@ -2,6 +2,8 @@ from app import app
 from datetime import date
 import os
 import datetime
+import sys
+import comtypes.client
 
 
 def time():
@@ -46,3 +48,21 @@ def File_checker(args, kwargs):
         return True
     else:
         return False
+
+
+def ppt_to_pdf(file):
+    input_file_path = sys.argv[1]
+    output_file_path = sys.argv[2]
+
+    input_file_path = os.path.abspath(input_file_path)
+    output_file_path = os.path.abspath(output_file_path)
+
+    powerpoint = comtypes.client.CreateObject("Powerpoint.Application")
+
+    powerpoint.Visible = 1
+
+    slides = powerpoint.Presentations.Open(input_file_path)
+
+    slides.SaveAs(output_file_path, 32)
+
+    slides.Close()
