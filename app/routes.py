@@ -220,8 +220,6 @@ def register():
     is_verified = 'False'
     filepath = request.files['file']
     filename = filepath.filename
-    picturepath = f"Users/{filename}"
-
     path = makefolder('Users')
 
     validator = Signup.query.filter_by(email=email).first()
@@ -229,19 +227,16 @@ def register():
     if validator:
         return ({'status': 'error', 'noty': 'This email has already been registered'})
     else:
-        if not profile_checker(picturepath):
-            return({'status': 'error', 'noty': 'the pictiure seems to be in wrong format or seems to have been uploaded'})
-        else:
-            filepath.save(os.path.join(path, filename))
-            upload_file(picturepath, 'greenhorse')
-            new_data = Signup(email, fullname, address, phone, password,
-                              usertype, registertime, is_verified, picturepath)
-            db.session.add(new_data)
-            db.session.commit()
-            remove_file = os.path.join(path, filename)
-            file_remove(remove_file)
-            # return signup_schema.jsonify(new_data)
-            return({'status': 'success', 'noty': 'Sucessfully registered'})
+        filepath.save(os.path.join(path, filename))
+
+        new_data = Signup(email, fullname, address, phone, password,
+                          usertype, registertime, is_verified)
+        db.session.add(new_data)
+        db.session.commit()
+        remove_file = os.path.join(path, filename)
+        file_remove(remove_file)
+        # return signup_schema.jsonify(new_data)
+        return({'status': 'success', 'noty': 'Sucessfully registered'})
 
 
 @app.route('/getuser/<id>', methods=['GET'])
@@ -356,5 +351,10 @@ def graph(currentuser):
         user_id = users.id
 
     filepath = request.files['file']
-    filename = filepath.filename
-    pdf_to_file(filename)
+    name = filepath.filename
+    status = 'update'
+    userid = user_id
+    ppt_to_pdf()
+    new_data = Ppt(name,status,useid)
+    db.session.add(new_data)
+    db.session.commit()

@@ -97,7 +97,7 @@ class AlbumSchema(ma.Schema):
 
 class PptSchema(ma.Schema):
     class Meta:
-        fields = ('id', 'status', 'linknamename', 'date', 'userid')
+        fields = ('id', 'status', 'name', 'date', 'userid')
 
 
 class FilesSchema(ma.Schema):

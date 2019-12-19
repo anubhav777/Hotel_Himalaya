@@ -50,19 +50,30 @@ def File_checker(args, kwargs):
         return False
 
 
-def ppt_to_pdf(file):
-    input_file_path = sys.argv[1]
-    output_file_path = sys.argv[2]
-
-    input_file_path = os.path.abspath(input_file_path)
-    output_file_path = os.path.abspath(output_file_path)
-
+def init_powerpoint():
     powerpoint = comtypes.client.CreateObject("Powerpoint.Application")
-
     powerpoint.Visible = 1
+    return powerpoint
 
-    slides = powerpoint.Presentations.Open(input_file_path)
 
-    slides.SaveAs(output_file_path, 32)
+def ppt_to_pdf(powerpoint, inputFileName, outputFileName, formatType=32):
+    if outputFileName[-3:] != 'pdf':
+        outputFileName = outputFileName + ".pdf"
+    deck = powerpoint.Presentations.Open(inputFileName)
+    deck.SaveAs(outputFileName, formatType)  # formatType = 32 for ppt to pdf
+    deck.Close()
 
-    slides.Close()
+
+def convert_files_in_folder(powerpoint, folder):
+    files = os.listdir(folder)
+    pptfiles = [f for f in files if f.endswith((".ppt", ".pptx"))]
+    for pptfile in pptfiles:
+        fullpath = os.path.join(folder, pptfile)
+        ppt_to_pdf(powerpoint, fullpath, fullpath)
+
+
+def ppt_to_pdf():
+    powerpoint = init_powerpoint()
+    cwd = os.getcwd()
+    convert_files_in_folder(powerpoint, cwd)
+    powerpoint.Quit()
