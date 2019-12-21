@@ -355,6 +355,38 @@ def graph(currentuser):
     status = 'update'
     userid = user_id
     ppt_to_pdf()
-    new_data = Ppt(name,status,useid)
+    new_data = Ppt(name, status, userid)
     db.session.add(new_data)
     db.session.commit()
+
+
+@app.route('/getpdf/<id>', methods=['GET'])
+def getpdf(id):
+    users = Signup.query.filter_by(id=currentuser).first()
+    if not users:
+        return ({'status': 'error', 'noty': 'you cannot perfom this action'})
+    else:
+        result = Ppt.query.get(id)
+        return ppt_schema.jsonify(result)
+
+
+@app.route('/getallpdf', methods=['GET'])
+def getallpdf():
+    users = Signup.query.filter_by(id=currentuser).first()
+    if not users:
+        return ({'status': 'error', 'noty': 'you cannot perfom this action'})
+    else:
+        result = Ppt.query.all()
+        new_result = ppt_schema.dump(result)
+        return jsonify(new_result)
+
+
+@app.route("/deleteppt/<id>", methods=['DELETE'])
+def deletefile(id):
+    result = Ppt.query.get(id)
+    new_filepath = result.filepath.replace("/", '\\')
+    os.chdir(os.environ.get('FILEPATH'))
+    os.remove('%s%s' % os.environ.get('FILEPATH'), new_filepath)
+    db.session.delete(result)
+    db.session.commit()
+    return({'status': 'deleted sucessfully'})
