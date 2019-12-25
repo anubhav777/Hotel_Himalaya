@@ -9,146 +9,184 @@ from flask import request, jsonify, Response
 
 @app.route('/getallalbum', methods=['GET'])
 def getallalbum():
-    result = Album.query.all()
-    new_result = albums_schema.dump(result)
-    return jsonify(new_result)
+    users = Signup.query.filter_by(id=currentuser).first()
+    if not users:
+        return ({'status': 'error', 'noty': 'you cannot perfom this action'})
+    else:
+        result = Album.query.all()
+        new_result = albums_schema.dump(result)
+        return jsonify(new_result)
 
 
 @app.route('/updatealbum/<id>', methods=["PUT"])
+@token
 def updatealbum(id):
+    users = Signup.query.filter_by(id=currentuser).first()
+    if not users:
+        return ({'status': 'error', 'noty': 'you cannot perfom this action'})
+    else:
+        res = request.json['status']
+        interval = request.json['interval']
 
-    res = request.json['status']
-    interval = request.json['interval']
-
-    album = Album.query.get(id)
-    album.status = res
-    album.interval = interval
-    db.session.commit()
-    return({'status': 'updated sucessfully'})
+        album = Album.query.get(id)
+        album.status = res
+        album.interval = interval
+        db.session.commit()
+        return({'status': 'updated sucessfully'})
 
 
 @app.route('/deletealbum/<id>', methods=['DELETE'])
+@token
 def deletealbum(id):
-    result = Album.query.get(id)
+    users = Signup.query.filter_by(id=currentuser).first()
+    if not users:
+        return ({'status': 'error', 'noty': 'you cannot perfom this action'})
+    else:
+        result = Album.query.get(id)
 
-    print(result.id)
-    newpath = 'D:\React\himalayafrontend\public\%s' % result.name
-    os.chdir('D:\React\himalayafrontend\public')
-    shutil.rmtree(r'D:\React\himalayafrontend\public\%s' % result.name)
-    db.session.delete(result)
-    db.session.commit()
-    return({'status': 'deleted sucessfully'})
+        print(result.id)
+        newpath = 'D:\React\himalayafrontend\public\%s' % result.name
+        os.chdir('D:\React\himalayafrontend\public')
+        shutil.rmtree(r'D:\React\himalayafrontend\public\%s' % result.name)
+        db.session.delete(result)
+        db.session.commit()
+        return({'status': 'deleted sucessfully'})
 
 
 @app.route("/uploadfile", methods=['POST'])
+@token
 def uploadfile():
-    # album=request.headers['album']
-    # filename=request.json['filename']
-    albumid = None
-    filepath = None
-    try_filepath = None
-    new_albumid = None
-    # if album == "":
-    #     filepath='D:\HotelHimalaya\%s'%filename
-    # else:
-    #     filepath='D:\HotelHimalaya\%s\%s'%(album,filename)
-    # date=time()
-    # albumid=None
-    res = request.files.getlist('file')
-    albumname = request.args.get('albumid')
+    users = Signup.query.filter_by(id=currentuser).first()
+    if not users:
+        return ({'status': 'error', 'noty': 'you cannot perfom this action'})
+    else:
+        # album=request.headers['album']
+        # filename=request.json['filename']
+        albumid = None
+        filepath = None
+        try_filepath = None
+        new_albumid = None
+        # if album == "":
+        #     filepath='D:\HotelHimalaya\%s'%filename
+        # else:
+        #     filepath='D:\HotelHimalaya\%s\%s'%(album,filename)
+        # date=time()
+        # albumid=None
+        res = request.files.getlist('file')
+        albumname = request.args.get('albumid')
 
-    for i in range(len(res)):
+        for i in range(len(res)):
 
-        if not albumname:
-            new_albumid = request.form['albumid']
-        else:
-            new_albumid = albumname
-        print(new_albumid)
-        album = Album.query.filter_by(id=new_albumid).first()
+            if not albumname:
+                new_albumid = request.form['albumid']
+            else:
+                new_albumid = albumname
+            print(new_albumid)
+            album = Album.query.filter_by(id=new_albumid).first()
 
-        check_filepath = folder_checker(album.name)
-        filepath = check_filepath['path']
-        print(filepath)
-        try_filepath = "%s/%s" % (album.name, res[i].filename)
-        print(try_filepath)
-        albumid = new_albumid
+            check_filepath = folder_checker(album.name)
+            filepath = check_filepath['path']
+            print(filepath)
+            try_filepath = "%s/%s" % (album.name, res[i].filename)
+            print(try_filepath)
+            albumid = new_albumid
 
-        if not file_extension(res[i].filename):
-            return ({'status': 'the picture is invalid'})
-        if not File_checker(filepath, res[i].filename):
-            return ({'status': 'the picture already exist with the same name'})
+            if not file_extension(res[i].filename):
+                return ({'status': 'the picture is invalid'})
+            if not File_checker(filepath, res[i].filename):
+                return ({'status': 'the picture already exist with the same name'})
 
-        filename = res[i].filename
-        new_filepath = '%s/%s' % (filepath, filename)
-        date = time()
-        interval = album.interval
-        status = "None"
-        new_filename = f"{album.name}/{res[i].filename}"
-        print('hi', new_filename)
-        result = Filesdb(filename, try_filepath, date,
-                         status, interval, albumid)
-        db.session.add(result)
-        db.session.commit()
-        s3_resource = boto3.resource('s3')
-        my_bucket = s3_resource.Bucket('himalayastorage')
-        res[i].save(os.path.join(filepath, res[i].filename))
-        my_bucket.upload_file(Filename=new_filename, Key=new_filename)
-        print(new_filepath)
+            filename = res[i].filename
+            new_filepath = '%s/%s' % (filepath, filename)
+            date = time()
+            interval = album.interval
+            status = "None"
+            new_filename = f"{album.name}/{res[i].filename}"
+            print('hi', new_filename)
+            result = Filesdb(filename, try_filepath, date,
+                             status, interval, albumid)
+            db.session.add(result)
+            db.session.commit()
+            s3_resource = boto3.resource('s3')
+            my_bucket = s3_resource.Bucket('himalayastorage')
+            res[i].save(os.path.join(filepath, res[i].filename))
+            my_bucket.upload_file(Filename=new_filename, Key=new_filename)
+            print(new_filepath)
 
-    return({'status': 'file uploaded sucessfully'})
+            return({'status': 'file uploaded sucessfully'})
 
 
 @app.route("/deletefile/<id>", methods=['DELETE'])
+@token
 def deletefile(id):
-    result = Filesdb.query.get(id)
-    new_filepath = result.filepath.replace("/", '\\')
-    os.chdir('D:\React\himalayafrontend\public')
-    os.remove('D:\React\himalayafrontend\public\%s' % new_filepath)
-    db.session.delete(result)
-    db.session.commit()
-    return({'status': 'deleted sucessfully'})
+    users = Signup.query.filter_by(id=currentuser).first()
+    if not users:
+        return ({'status': 'error', 'noty': 'you cannot perfom this action'})
+    else:
+        result = Filesdb.query.get(id)
+        new_filepath = result.filepath.replace("/", '\\')
+        os.chdir('D:\React\himalayafrontend\public')
+        os.remove('D:\React\himalayafrontend\public\%s' % new_filepath)
+        db.session.delete(result)
+        db.session.commit()
+        return({'status': 'deleted sucessfully'})
 
 
 @app.route('/getfile/<id>', methods=['GET'])
+@token
 def getfile(id):
-    result = Filesdb.query.get(id)
-    return file_schema.jsonify(result)
+    users = Signup.query.filter_by(id=currentuser).first()
+    if not users:
+        return ({'status': 'error', 'noty': 'you cannot perfom this action'})
+    else:
+        result = Filesdb.query.get(id)
+        return file_schema.jsonify(result)
 
 
 @app.route('/updatefile/<id>', methods=['PUT'])
+@token
 def updatefile(id):
-    album = Filesdb.query.filter_by(albumid=id).all()
-    print(album)
-    for i in range(len(album)):
-        print(album[i].filename)
+    users = Signup.query.filter_by(id=currentuser).first()
+    if not users:
+        return ({'status': 'error', 'noty': 'you cannot perfom this action'})
+    else:
+        album = Filesdb.query.filter_by(albumid=id).all()
+        print(album)
+        for i in range(len(album)):
+            print(album[i].filename)
 
-        files = Filesdb.query.get(album[i].id)
-        files.status = album[i].album.status
-        files.interval = album[i].album.interval
+            files = Filesdb.query.get(album[i].id)
+            files.status = album[i].album.status
+            files.interval = album[i].album.interval
 
-        db.session.commit()
-    return({'status': 'updated sucessfully'})
+            db.session.commit()
+        return({'status': 'updated sucessfully'})
 
 
 @app.route('/getallfile', methods=['GET'])
+@token
 def getallfile():
-    albumname = request.args.get('albumid')
-    print(albumname)
-    if not albumname:
-        if 'display' in request.headers:
-            result = Filesdb.query.filter_by(status='Approved').all()
+    users = Signup.query.filter_by(id=currentuser).first()
+    if not users:
+        return ({'status': 'error', 'noty': 'you cannot perfom this action'})
+    else:
+        albumname = request.args.get('albumid')
+        print(albumname)
+        if not albumname:
+            if 'display' in request.headers:
+                result = Filesdb.query.filter_by(status='Approved').all()
+                new_result = files_schema.dump(result)
+                return jsonify(new_result)
+
+            result = Filesdb.query.all()
             new_result = files_schema.dump(result)
             return jsonify(new_result)
-
-        result = Filesdb.query.all()
-        new_result = files_schema.dump(result)
-        return jsonify(new_result)
-    else:
-        album = Album.query.filter_by(id=albumname).first()
-        print(album.id)
-        result = Filesdb.query.filter_by(albumid=album.id).all()
-        new_result = files_schema.dump(result)
-        return jsonify(new_result)
+        else:
+            album = Album.query.filter_by(id=albumname).first()
+            print(album.id)
+            result = Filesdb.query.filter_by(albumid=album.id).all()
+            new_result = files_schema.dump(result)
+            return jsonify(new_result)
 
 
 @app.route('/getimage', methods=['GET'])
@@ -188,22 +226,27 @@ def gettry():
 
 # # print(time())
 @app.route("/album", methods=["POST"])
+@token
 def album():
-    name = request.json['name']
-    date = time()
-    status = "None"
-    interval = request.json['interval']
-    folder = folder_checker(name)
-    if not folder['status']:
-        return({'status': 'Album has already been created Please provide another name'})
+    users = Signup.query.filter_by(id=currentuser).first()
+    if not users:
+        return ({'status': 'error', 'noty': 'you cannot perfom this action'})
+    else:
+        name = request.json['name']
+        date = time()
+        status = "None"
+        interval = request.json['interval']
+        folder = folder_checker(name)
+        if not folder['status']:
+            return({'status': 'Album has already been created Please provide another name'})
 
-    result = Album(name, date, status, interval)
-    db.session.add(result)
-    db.session.commit()
-    new_result = album_schema.dump(result)
-    return jsonify({'data': new_result, 'status': 'Album sucessfully created'})
-    # return album_schema.jsonify({'data':result,})
-    # return({'status':'Album sucessfully created'})
+        result = Album(name, date, status, interval)
+        db.session.add(result)
+        db.session.commit()
+        new_result = album_schema.dump(result)
+        return jsonify({'data': new_result, 'status': 'Album sucessfully created'})
+        # return album_schema.jsonify({'data':result,})
+        # return({'status':'Album sucessfully created'})
 
 
 @app.route('/signup', methods=['POST'])
@@ -361,6 +404,7 @@ def graph(currentuser):
 
 
 @app.route('/getpdf/<id>', methods=['GET'])
+@token
 def getpdf(id):
     users = Signup.query.filter_by(id=currentuser).first()
     if not users:
@@ -371,6 +415,7 @@ def getpdf(id):
 
 
 @app.route('/getallpdf', methods=['GET'])
+@token
 def getallpdf():
     users = Signup.query.filter_by(id=currentuser).first()
     if not users:
@@ -382,11 +427,16 @@ def getallpdf():
 
 
 @app.route("/deleteppt/<id>", methods=['DELETE'])
+@token
 def deletefile(id):
-    result = Ppt.query.get(id)
-    new_filepath = result.filepath.replace("/", '\\')
-    os.chdir(os.environ.get('FILEPATH'))
-    os.remove('%s%s' % os.environ.get('FILEPATH'), new_filepath)
-    db.session.delete(result)
-    db.session.commit()
-    return({'status': 'deleted sucessfully'})
+    users = Signup.query.filter_by(id=currentuser).first()
+    if not users.usertype == 'admin':
+        return ({'status': 'error', 'noty': 'you cannot perfom this action'})
+    else:
+        result = Ppt.query.get(id)
+        new_filepath = result.filepath.replace("/", '\\')
+        os.chdir(os.environ.get('FILEPATH'))
+        os.remove('%s%s' % os.environ.get('FILEPATH'), new_filepath)
+        db.session.delete(result)
+        db.session.commit()
+        return({'status': 'deleted sucessfully'})
